@@ -32,9 +32,13 @@ type state is (
 );
 
 signal n_rows       : byte;
+signal n_rows_load  : std_logic;
 signal n_columns    : byte;
+signal n_columns_load : std_logic;
 signal n_pixels      : unsigned(15 downto 0);
 signal n_pixel_remains : unsigned(15 downto 0);
+signal n_pixel_remains_load : std_logic;
+signal n_pixel_remains_load_start : std_logic;
 signal mem_pointer : unsigned(15 downto 0);
 signal state_current, state_next    : state;
 
@@ -44,9 +48,17 @@ begin
     
     state_switcher : 
     process(i_clk, i_rst) begin
-        if(i_rst='1') then state_current <= state_idle;
+        if(i_rst='1') then 
+            state_current <= state_idle;
+            n_rows <= "00000000";
+            n_columns <= "00000000";
+            n_pixel_remains <= "0000000000000000";
         elsif rising_edge(i_clk) then
             state_current <= state_next;
+            if(n_rows_load = '1') then n_rows <= i_mem_data; end if;
+            if(n_columns_load = '1') then n_columns <= i_mem_data; end if;
+            if(n_pixel_remains_load = '1') then n_pixel_remains <= unsigned(n_pixel_remains - to_unsigned(1, 16)); end if;
+            if(n_pixel_remains_load_start = '1') then n_pixel_remains <= unsigned(n_rows) * unsigned(n_columns); end if;
         end if;
     end process state_switcher;
     
@@ -58,7 +70,11 @@ begin
             o_mem_enable <= '0';
             o_done <= '0';
             o_value <= "00000000";
-            
+            n_rows_load <= '0';
+            n_columns_load <= '0';
+            n_pixel_remains_load <= '0';
+            n_pixel_remains_load_start <= '0';
+
             case state_current is
                 when state_idle =>
                     if(i_start='1') then state_next <= state_start; end if;
@@ -67,27 +83,27 @@ begin
                     state_next <= state_wait_rows;
                 when state_wait_rows =>
                     o_mem_enable <= '1';
+                    n_rows_load <= '1';
                     state_next <= state_read_rows;
                 when state_read_rows =>
                     o_mem_enable <= '1';
-                    n_rows <= i_mem_data;
                     o_value <= i_mem_data;
                     o_mem_address <= "0000000000000001";
                     state_next <= state_wait_columns;
                 when state_wait_columns =>
                     o_mem_enable <= '1';
+                    n_columns_load <= '1';
                     o_mem_address <= "0000000000000001";
                     state_next <= state_read_columns;
                 when state_read_columns =>
                     o_mem_address <= "0000000000000001";
                     mem_pointer <= to_unsigned(0, 16);
-                    n_columns <= i_mem_data;
                     o_value <= i_mem_data;
                     o_mem_enable <= '1';
+                    n_pixel_remains_load_start <= '1';
                     state_next <= state_calculate_pixels;
                 when state_calculate_pixels =>
                     n_pixels <= unsigned(n_rows) * unsigned(n_columns);
-                    n_pixel_remains <= unsigned(n_rows) * unsigned(n_columns);
                     state_next <= state_wait_pixel;
                     o_mem_enable <= '1';
                     o_mem_address <= std_logic_vector(mem_pointer  + to_unsigned(2, 16));
@@ -95,13 +111,13 @@ begin
                     if(n_pixel_remains > 0 )then
                         o_mem_enable <= '1';
                         o_mem_address <= std_logic_vector(mem_pointer  + to_unsigned(2, 16));
+                        n_pixel_remains_load <= '1';
                         state_next <= state_read_pixel;
                     else 
                         state_next <= state_done;
                     end if;
                 when state_read_pixel =>
                     mem_pointer <= unsigned(mem_pointer + to_unsigned(1, 16));
-                    n_pixel_remains <= unsigned(n_pixel_remains - to_unsigned(1, 16));
                     o_value <= i_mem_data;
                     o_read_enable <= '1';
                     state_next <= state_wait_write;
@@ -312,9 +328,6 @@ begin
                     o_done <= '1';
             end case;
     end process state_applier;
-
-
-
 end;
 
 library IEEE;
@@ -333,6 +346,79 @@ architecture Behavioral of multiplexer is
 begin
     o_value <= i_second when (i_control = '1') else i_first;
 end Behavioral;
+
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+
+entity or_gate is
+    port(
+        i_first: in std_logic;
+        i_second: in std_logic;
+        o_value: out std_logic
+    );
+end or_gate;
+
+architecture Behavioral of or_gate is
+begin
+    o_value <= i_second or i_first;
+end Behavioral;
+
+
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.NUMERIC_STD.ALL;
+
+entity finalizer is
+    port(
+        i_clk: in std_logic;
+        i_rst: in std_logic;
+        i_done: in std_logic;
+        i_start: in std_logic;
+        o_done: out std_logic;
+        o_rst: out std_logic
+    );
+end finalizer;
+
+architecture Behavioural of finalizer is 
+    subtype byte is std_logic_vector(7 downto 0);
+    type state is (
+        state_idle, 
+        state_reset_all,
+        state_wait_for_end
+    );
+    signal state_current, state_next: state;
+
+
+begin
+
+    state_switcher : 
+    process(i_clk, i_rst) begin
+        if(i_rst='1') then state_current <= state_idle;
+        elsif rising_edge(i_clk) then
+            state_current <= state_next;
+        end if;
+    end process state_switcher;
+    
+    state_applier : 
+    process(state_current, i_done, i_start) begin
+        o_done <= '0';
+        o_rst <= '0';
+        state_next <= state_current;
+        case state_current is 
+           when state_idle => if(i_done='1') then state_next <= state_reset_all; end if;
+           when state_reset_all => 
+                o_rst <= '1';
+                o_done <= '1';
+                state_next <= state_wait_for_end;
+           when state_wait_for_end =>
+                o_done <= '1';
+                if(i_start ='0') then state_next <= state_idle; end if;                
+        end case;
+    end process state_applier;
+
+
+end;
+
 
 
 library IEEE;
@@ -361,6 +447,9 @@ signal   max_calculated         : std_logic_vector(7 downto 0);
 signal   finish_first_scan      : std_logic;
 signal mem_start_scanner        : std_logic;
 signal start_mem                : std_logic;
+signal internal_reset           : std_logic;
+signal finalizer_reset          : std_logic;
+signal finished_equalization    : std_logic;
 
 
 
@@ -409,11 +498,32 @@ component equalizer is
     );
 end component;
 
+component finalizer is
+    port(
+        i_clk: in std_logic;
+        i_rst: in std_logic;
+        i_done: in std_logic;
+        i_start: in std_logic;
+        o_done: out std_logic;
+        o_rst: out std_logic
+    );
+end component;
+
+
+
 component multiplexer is
     port(
         i_first: in std_logic;
         i_second: in std_logic;
         i_control: in std_logic;
+        o_value: out std_logic
+    );
+end component;
+
+component or_gate is
+    port(
+        i_first: in std_logic;
+        i_second: in std_logic;
         o_value: out std_logic
     );
 end component;
@@ -427,11 +537,17 @@ begin
         i_control => finish_first_scan,
         o_value => start_mem
     );
-
+    
+    OR_GATE_TESTED:
+    or_gate port map(
+        i_first => i_rst,
+        i_second => finalizer_reset,
+        o_value => internal_reset
+    );
     CALCULATOR_TESTED: 
     max_min_calculator port map(
         i_clk => i_clk,
-        i_rst => i_rst,
+        i_rst => internal_reset,
         i_enable_read => enable_read_scanner,
         i_value => output_from_scanner,
         i_finish_scan => finish_scanner,
@@ -443,7 +559,7 @@ begin
     MEM_SCANNER_TESTED: 
     mem_scanner port map(
         i_clk           => i_clk,
-        i_rst           => i_rst,
+        i_rst           => internal_reset,
         i_start         => start_mem,
         i_mem_data      => i_data,
         o_value         => output_from_scanner,
@@ -456,7 +572,7 @@ begin
     EQUALIZER_TESTED:
     equalizer port map(
         i_clk           => i_clk,
-        i_rst           => i_rst,
+        i_rst           => internal_reset,
         i_start         => finish_first_scan,
         i_min_value     => min_calculated,
         i_max_value     => max_calculated,
@@ -466,10 +582,17 @@ begin
         o_mem_start_scan    => mem_start_scanner,
         o_new_pixel_value   => o_data,
         o_value_readable    => o_we,
-        o_done       => o_done
+        o_done       => finished_equalization
     );
-
-
-
+    
+    FINALIZER_TESTED:
+    finalizer port map(
+        i_clk => i_clk,
+        i_rst => i_rst,
+        i_done => finished_equalization,
+        i_start => i_start,
+        o_done => o_done,
+        o_rst => finalizer_reset
+    );
 
 end Behavioral;
