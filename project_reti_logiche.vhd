@@ -37,6 +37,7 @@ signal n_columns    : byte;
 signal n_columns_load : std_logic;
 signal n_pixels      : unsigned(15 downto 0);
 signal n_pixel_remains : unsigned(15 downto 0);
+signal n_pixels_load : std_logic;
 signal n_pixel_remains_load : std_logic;
 signal n_pixel_remains_load_start : std_logic;
 signal mem_pointer : unsigned(15 downto 0);
@@ -53,10 +54,12 @@ begin
             n_rows <= "00000000";
             n_columns <= "00000000";
             n_pixel_remains <= "0000000000000000";
+            n_pixels <= "0000000000000000";
         elsif rising_edge(i_clk) then
             state_current <= state_next;
             if(n_rows_load = '1') then n_rows <= i_mem_data; end if;
             if(n_columns_load = '1') then n_columns <= i_mem_data; end if;
+            if(n_pixels_load = '1') then n_pixels <= unsigned(n_rows) * unsigned(n_columns); end if;
             if(n_pixel_remains_load = '1') then n_pixel_remains <= unsigned(n_pixel_remains - to_unsigned(1, 16)); end if;
             if(n_pixel_remains_load_start = '1') then n_pixel_remains <= unsigned(n_rows) * unsigned(n_columns); end if;
         end if;
@@ -74,6 +77,7 @@ begin
             n_columns_load <= '0';
             n_pixel_remains_load <= '0';
             n_pixel_remains_load_start <= '0';
+            n_pixels_load <= '0';
 
             case state_current is
                 when state_idle =>
@@ -101,9 +105,9 @@ begin
                     o_value <= i_mem_data;
                     o_mem_enable <= '1';
                     n_pixel_remains_load_start <= '1';
+                    n_pixels_load <= '1';
                     state_next <= state_calculate_pixels;
                 when state_calculate_pixels =>
-                    n_pixels <= unsigned(n_rows) * unsigned(n_columns);
                     state_next <= state_wait_pixel;
                     o_mem_enable <= '1';
                     o_mem_address <= std_logic_vector(mem_pointer  + to_unsigned(2, 16));
