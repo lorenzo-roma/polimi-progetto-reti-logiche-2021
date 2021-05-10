@@ -101,7 +101,7 @@ begin
                     state_next <= state_read_columns;
                 when state_read_columns =>
                     o_mem_address <= "0000000000000001";
-                    mem_pointer <= to_unsigned(0, 16);
+                    mem_pointer <= "0000000000000000";
                     o_value <= i_mem_data;
                     o_mem_enable <= '1';
                     n_pixel_remains_load_start <= '1';
@@ -241,6 +241,7 @@ architecture Behavioural of equalizer is
     );
     signal state_current, state_next: state;
     signal delta_value: integer;
+    signal delta_value_load: std_logic;
     signal temp_pixel: unsigned(15 downto 0);
 begin
    
@@ -248,6 +249,7 @@ begin
     process(i_clk, i_rst) begin
         if(i_rst='1') then state_current <= state_idle;
         elsif rising_edge(i_clk) then
+            if(delta_value_load = '1') then delta_value <= to_integer((unsigned(i_max_value)) - (unsigned(i_min_value))); end if;
             state_current <= state_next;
         end if;
     end process state_switcher;
@@ -257,13 +259,17 @@ begin
             o_done <= '0';
             o_value_readable <= '0';
             o_mem_start_scan <= '0';
+            delta_value_load <= '0';
             state_next <= state_current;
             o_new_pixel_value <= "00000000";
             case state_current is
                 when state_idle =>
-                    if(i_start='1') then state_next <= state_start_scan; end if;
+                    if(i_start='1') then 
+                    state_next <= state_start_scan; 
+                    delta_value_load <= '1';
+                    end if;
                 when state_start_scan =>
-                   delta_value <= to_integer((unsigned(i_max_value)) - (unsigned(i_min_value)));
+                  
                    o_mem_start_scan <= '1';
                    state_next <= state_equalize_pixel;
                 when state_equalize_pixel =>
