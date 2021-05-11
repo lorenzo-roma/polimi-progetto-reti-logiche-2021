@@ -41,6 +41,8 @@ signal n_pixels_load : std_logic;
 signal n_pixel_remains_load : std_logic;
 signal n_pixel_remains_load_start : std_logic;
 signal mem_pointer : unsigned(15 downto 0);
+signal mem_pointer_load: std_logic;
+signal mem_pointer_reset: std_logic;
 signal state_current, state_next    : state;
 
 
@@ -55,6 +57,7 @@ begin
             n_columns <= "00000000";
             n_pixel_remains <= "0000000000000000";
             n_pixels <= "0000000000000000";
+            mem_pointer <= "0000000000000000";
         elsif rising_edge(i_clk) then
             state_current <= state_next;
             if(n_rows_load = '1') then n_rows <= i_mem_data; end if;
@@ -62,6 +65,8 @@ begin
             if(n_pixels_load = '1') then n_pixels <= unsigned(n_rows) * unsigned(n_columns); end if;
             if(n_pixel_remains_load = '1') then n_pixel_remains <= unsigned(n_pixel_remains - to_unsigned(1, 16)); end if;
             if(n_pixel_remains_load_start = '1') then n_pixel_remains <= unsigned(n_rows) * unsigned(n_columns); end if;
+            if(mem_pointer_load = '1')then mem_pointer <= unsigned(mem_pointer + to_unsigned(1, 16)); end if;
+            if(mem_pointer_reset = '1') then  mem_pointer <= "0000000000000000"; end if;
         end if;
     end process state_switcher;
     
@@ -75,13 +80,18 @@ begin
             o_value <= "00000000";
             n_rows_load <= '0';
             n_columns_load <= '0';
+            mem_pointer_load <= '0';
             n_pixel_remains_load <= '0';
             n_pixel_remains_load_start <= '0';
             n_pixels_load <= '0';
+            mem_pointer_reset <= '0';
 
             case state_current is
                 when state_idle =>
-                    if(i_start='1') then state_next <= state_start; end if;
+                    if(i_start='1') then 
+                    state_next <= state_start; 
+                    mem_pointer_reset <= '1';
+                    end if;
                 when state_start =>
                     o_mem_enable <= '1';
                     state_next <= state_wait_rows;
@@ -101,7 +111,6 @@ begin
                     state_next <= state_read_columns;
                 when state_read_columns =>
                     o_mem_address <= "0000000000000001";
-                    mem_pointer <= "0000000000000000";
                     o_value <= i_mem_data;
                     o_mem_enable <= '1';
                     n_pixel_remains_load_start <= '1';
@@ -116,17 +125,17 @@ begin
                         o_mem_enable <= '1';
                         o_mem_address <= std_logic_vector(mem_pointer  + to_unsigned(2, 16));
                         n_pixel_remains_load <= '1';
+                        mem_pointer_load <= '1';
                         state_next <= state_read_pixel;
                     else 
                         state_next <= state_done;
                     end if;
                 when state_read_pixel =>
-                    mem_pointer <= unsigned(mem_pointer + to_unsigned(1, 16));
                     o_value <= i_mem_data;
                     o_read_enable <= '1';
                     state_next <= state_wait_write;
                     o_mem_enable <= '1';
-                    o_mem_address <= std_logic_vector(mem_pointer  + to_unsigned(2, 16) + n_pixels);
+                    o_mem_address <= std_logic_vector(mem_pointer  + to_unsigned(1, 16) + n_pixels);
                 when state_wait_write =>
                     o_value <= "11111111";
                     o_mem_enable <= '1';
@@ -163,43 +172,43 @@ architecture Behavioural of max_min_calculator is
     subtype byte is std_logic_vector(7 downto 0);
     type state is (
         state_idle, 
-        state_update_values, 
-        state_wait_values,
         state_done
     );
     
     signal min_value    : byte;
     signal max_value    : byte;
-    signal state_current    : state;
+    signal value_load: std_logic;
+    signal state_current, state_next    : state;
 
 
 begin
 
     state_switcher : 
     process(i_clk, i_rst, i_enable_read, i_finish_scan) begin
-        if(i_rst='1') then state_current <= state_idle;
+        if(i_rst='1') then
+         state_current <= state_idle;
+         min_value  <= "11111111";
+         max_value <= "00000000";
         elsif rising_edge(i_clk) then
-            if(not(state_current = state_done)) then
-                    if(i_enable_read='1') then state_current <= state_update_values; end if;
-                    if(i_finish_scan='1') then state_current <= state_done;
-                    elsif(i_enable_read='0') then state_current <= state_wait_values; end if;
-            end if;
+            state_current <= state_next;
+            if(value_load = '1') then if(unsigned(min_value)>unsigned(i_value)) then min_value <= i_value; end if; end if;
+            if(value_load = '1') then if(unsigned(max_value)<unsigned(i_value)) then max_value <= i_value; end if; end if;       
         end if;
     end process state_switcher;
     
     state_applier : 
-    process(state_current) begin
+    process(state_current, i_enable_read, i_finish_scan) begin
         o_done <= '0';
         o_min <= "00000000";
         o_max <= "00000000";
+        state_next <= state_current;
+        value_load <= '0';
         case state_current is
-            when state_idle =>
-                min_value  <= "11111111";
-                max_value <= "00000000";
-           when state_update_values =>
-                if(unsigned(min_value)>unsigned(i_value)) then min_value <= i_value; end if;
-                if(unsigned(max_value)<unsigned(i_value)) then max_value <= i_value; end if;
-           when state_wait_values =>
+           when state_idle =>
+                if(i_enable_read = '1') then
+                    value_load <= '1';
+                end if;       
+                if(i_finish_scan = '1') then state_next <= state_done; end if;
            when state_done =>
                 o_done <= '1';
                 o_min <= min_value;
