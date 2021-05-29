@@ -1,207 +1,232 @@
-introduzione
-componente da realizzare
-specifiche del compoente
-interfaccia del componente
-struttura memoria
+\documentclass{report}
+\usepackage[utf8]{inputenc}
+
+\title{Prova finale di Reti Logiche}
+\author{Lorenzo Romagnoni}
+\date{a.a. 2020/2021}
+
+\usepackage{natbib}
+\usepackage{graphicx}
+\usepackage{pythonhighlight}
 
 
-architettura
-disegno architettura e spiegazione moduli
-macchine a stati funzionamento ciascun modulo
+\begin{document}
 
-risultati
-report di sintesi
-simulazioni 
+\maketitle
 
-conclusioni
-
-
-Introduzione
+\chapter{Introduzione}
 Data un immagine, il progetto consiste nel design e implementazione di un componente hardware che ne elabori una sua versione aumentando il contrasto visivo.
-Il compoenente deve essere implementato tramite VHDL, ed aumentare il contrasto dell'immagine in input utilizzando un algoritmo ispirato al metodo di equalizzazione dell'istogramma dell'immagine originale.
+Il compoenente deve essere implementato tramite VHDL, ed aumentare il contrasto dell'immagine in input utilizzando un algoritmo ispirato al metodo di equalizzazione dell'istogramma proveniente dall'immagine originale.
 
 
-specifiche del componente
-le immagini fornite in input saranno in scala di grigi a 256 livelli, le immagini avranno dimensione rettangolare, le cui dimensioni dei lati sono variabili tra 0px e 128px.
+\begin{figure}[h!]
+\centering
+\includegraphics[scale=1.7]{universe}
+\caption{The Universe}
+\label{fig:universe}
+\end{figure}
+
+\chapter{Funzione del componente}
+Le immagini fornite in input saranno in scala di grigio a 256 livelli, avranno dimensione rettangolare, le cui dimensioni dei lati sono variabili tra 0px e 128px.
 Un esempio di equalizzazione è il seguente:
 data un immagine 2x2px:
 40 154
 200 34
 
-l'output dopo aver calibrato il contrasto sarà il seguente:
-f(40) = ...
-f(154) = ...
-f(200) = ...
-f(34) = ...
+l'output dopo aver calibrato il contrasto sarà il seguente: \\
+\[f(40) = ... \]\\
+\[f(154) = ...\]\\
+\[f(200) = ...\]\\
+\[f(34) = ...\]\\
 
-La funzione f è definita come segue:
-f(old_pixel):
-	delta_value = max_pixel_value - min_pixel_value;
-	shift = (8-floor(log2(delta_value +1)))
-	temp = (old_pixel - min_pixel) << shift
-	return min(255, temp)
+La funzione f è definita come segue:\\
+\\
+\texttt{
+f(old\_pixel):\\
+\quad delta\_value = max\_pixel\_value - min\_pixel\_value;\\
+\quad shift = (8-floor(log2(delta\_value + 1)))\\
+\quad temp = (old\_pixel - min\_pixel) << shift\\
+\quad return min(255, temp)\\
+}
+\section{Interfaccia del componente}
+Il componente da descrivere deve avere la seguente interfaccia.\\
 
-Considerando la presenza dei valori min_pixel e max_pixel all'interno della funzione di equalizzazione, il processo di elaborazione si divide nelle seguenti fasi:
-lettura delle dimensioni dell'immagine
-lettura delle immagini per il calcolo del massimo ed il minimo
-lettura delle immagini per l'equalizzazione
-scrittura dell'immagine equalizzata in memoria
-
-Interfaccia del componente
-Il componente da descrivere deve avere la seguente interfaccia.
-entity project_reti_logiche is
+\texttt{
+entity project\_reti\_logiche is\\
 port (
-i_clk : in std_logic;
-i_rst : in std_logic;
-i_start : in std_logic;
-i_data : in std_logic_vector(7 downto 0);
-o_address : out std_logic_vector(15 downto 0);
-o_done : out std_logic;
-o_en : out std_logic;
-o_we : out std_logic;
-o_data : out std_logic_vector (7 downto 0)
+i\_clk : in std\_logic;\\
+i\_rst : in std\_logic;\\
+i\_start : in std\_logic;\\
+i\_data : in std\_logic\_vector(7 downto 0);\\
+o\_address : out std\_logic\_vector(15 downto 0);\\
+o\_done : out std\_logic;\\
+o\_en : out std\_logic;\\
+o\_we : out std\_logic;\\
+o\_data : out std\_logic\_vector (7 downto 0)\\
 );
-end project_reti_logiche;
-
-In particolare:
-● il nome del modulo deve essere project_reti_logiche
-● i_clk è il segnale di CLOCK in ingresso generato dal TestBench;
-● i_rst è il segnale di RESET che inizializza la macchina pronta per ricevere il primo
+end project\_reti\_logiche;
+}\\
+\\
+In particolare: \\
+\begin{itemize}
+\item \texttt{i\_clk} è il segnale di CLOCK in ingresso generato dal TestBench;
+\item \texttt{i\_rst} è il segnale di RESET che inizializza la macchina pronta per ricevere il primo
 segnale di START;
-● i_start è il segnale di START generato dal Test Bench;
-● i_data è il segnale (vettore) che arriva dalla memoria in seguito ad una richiesta di
+\item \texttt{i\_start} è il segnale di START generato dal Test Bench;
+\item \texttt{i\_data} è il segnale (vettore) che arriva dalla memoria in seguito ad una richiesta di
 lettura;
-● o_address è il segnale (vettore) di uscita che manda l’indirizzo alla memoria;
-● o_done è il segnale di uscita che comunica la fine dell’elaborazione e il dato di uscita
+\item \texttt{o\_address} è il segnale (vettore) di uscita che manda l’indirizzo alla memoria;
+\item \texttt{o\_done} è il segnale di uscita che comunica la fine dell’elaborazione e il dato di uscita
 scritto in memoria;
-● o_en è il segnale di ENABLE da dover mandare alla memoria per poter comunicare
+\item \texttt{o\_en} è il segnale di ENABLE da dover mandare alla memoria per poter comunicare
 (sia in lettura che in scrittura);
-● o_we è il segnale di WRITE ENABLE da dover mandare alla memoria (=1) per poter
+\item \texttt{o\_we} è il segnale di WRITE ENABLE da dover mandare alla memoria (=1) per poter
 scriverci. Per leggere da memoria esso deve essere 0;
-● o_data è il segnale (vettore) di uscita dal componente verso la memoria.
+\item \texttt{o\_data} è il segnale (vettore) di uscita dal componente verso la memoria.
+\end{itemize}
 
-Descrizione della memoria
-Ogni pixel dell'immagine corrisponde ad un byte.
+\chapter{Descrizione della memoria}
+Ogni pixel dell'immagine corrisponde ad un byte.\\
 La dimensione è definita in 2byte, ognuno rappresentante la dimensione di un lato dell'immagine.
-Il byte all'indirizzo 0 si riferisce alla dimensione di colonna, quello all'indirizzo 1 alla dimensione di riga.
+Il byte all'indirizzo 0 si riferisce alla dimensione di colonna, quello all'indirizzo 1 alla dimensione di riga.\\
 I byte contigui dell'immagine sono memorizzati a partire dall'indirizzo 2. 
-I pixel dell'immagine equalizzata sono memorizzati in memoria con indirizzamento al byte a partire dalla posizione 2 + n_righe * n_colonne.
-Esempio memoria:
+I pixel dell'immagine equalizzata sono memorizzati in memoria con indirizzamento al byte a partire dalla posizione 2 + n\_righe * n\_colonne.\\
+Esempio memoria:\\
 
-
-architettura
-Viste le diverse fasi per l'elaborazione dell'immagine, si è deciso di suddividere lo sviluppo in diversi componenti, ognuno dei quali rappresentabile come una macchina a stati.
+\chapter{Archittura del componente}
+Considerando la presenza dei valori min\_pixel e max\_pixel all'interno della funzione di equalizzazione, il processo di elaborazione si divide nelle seguenti fasi:
+\begin{enumerate}
+\item lettura delle dimensioni dell'immagine
+\item lettura delle immagini per il calcolo del massimo ed il minimo
+\item lettura delle immagini per l'equalizzazione
+\item scrittura dell'immagine equalizzata in memoria
+\end{enumerate}
+Viste le diverse fasi per l'elaborazione dell'immagine, si è deciso di suddividere lo sviluppo in diversi componenti, ognuno dei quali rappresentabile come una macchina a stati.\\
 disegno semplificato 
 
-mem_scanner
-max_min_calculator
-equalizer
-finalizer
+\\
+\begin{itemize}
+\item mem\_scanner
+\item max\_min\_calculator
+\item equalizer
+\item finalizer
+\end{itemize}
 
-mem_scanner
+\section{mem\_scanner}
 Si occupa della lettura in memoria dell'immagine. Sono infatti necessarie almeno due letture di tutta l'immagine, la prima per il calcolo del massimo e minimo, la seconda per l'equalizzazione.
 Utilizzando un singolo componente per questa funzionalità si è evitata duplicazione non necessaria.
 
-stati del mem_scanner
+Stati:
 
-idle
-lo stato iniziale del componente, in attesa del segnale i_start, quando ricevuto segnala il reset del puntatore usato per scorrere la memoria e si passa allo stato start.
+\subsection{Stato \texttt{IDLE}}
+Lo stato iniziale del componente, in attesa del segnale \texttt{i\_start}, quando ricevuto segnala il reset del puntatore usato per scorrere la memoria e si passa allo stato \texttt{START}.
 in caso di reset si passa in questo stato
 
-start
+\subsection{Stato \texttt{START}}
 segnala alla memoria la sua attivazione
 
-wait_rows
+\subsection{Stato \texttt{WAIT\_ROWS}}
 attende la ricezione del numero di righe dalla memoria
 
-read_rows
+\subsection{Stato \texttt{READ\_ROWS}}
 salva il numero di righe in memoria, ed incrementa il puntatore
 
-wait_columns
+\subsection{Stato \texttt{WAIT\_COLUMNS}}
 attende la ricezione del numero di colonne dalla memoria
 
-read_columns
+\subsection{Stato \texttt{READ\_COLUMNS}}
 salva il numero di colonne in memoria, incrementa il puntatore
 
-calculate_pixels
+\subsection{Stato \texttt{CALCULATE\_PIXELS}}
 calcola il numero di pixel dell'immagine
 
-wait_pixel
+\subsection{Stato \texttt{WAIT\_PIXELS}}
 se ci sono pixel rimanenti, attende la ricezione dalla memoria, altrimenti si passa allo stato done
 
-read_pixel
+\subsection{Stato \texttt{READ\_PIXELS}}
 legge il pixel dalla memoria
 
-wait_write
+\subsection{Stato \texttt{WAIT\_ WRITE}}
 attende per permettere la scrittura in memoria dal compoenete equalizer, e ritorna allo stato wait_pixel
 
-done
+\subsection{Stato \texttt{DONE}}
 segnala il termine della scansione e passa allo stato idle
 
 
-max_min_calculator
+\section{max\_min\_calculator}
 Calcola il massimo ed il minimo dei valori passati in ingresso.
-stati:
 
-idle
+Stati:
+
+\subsection{Stato \texttt{IDLE}}
 in caso di reset arriva qua
 il componente rimane in ascolto dei segnali in ingresso. 
 se viene segnalato un valore da leggere, che in caso soddisfi la condizione, viene salvato come valore massimo o minimo.
 se viene segnalata la fine dello scanning, passa allo stato done
 
-done
+\subsection{Stato \texttt{DONE}}
 segnala in output i valori massimo e minimo
 
 
-equalizer
-stati
+\section{equalizer}
+stati:
 
-idle
+\subsection{Stato \texttt{IDLE}}
 in caso di reset arriva qua.
 se segnalato l'inizio della scansione, passa a start_scan e si prepara a ricevere la differenza tra massimo e minimo
 
-start_scan
+\subsection{Stato \texttt{START\_SCAN}}
 segnala in uscita l'inizio della scansione e passa a equalize_pixel
 
-equalize_pixel
+\subsection{Stato \texttt{EQUALIZE\_PIXEL}}
 se segnalata la fine dello scanning passa a done
 se è presente un valore da leggere, calcola e manda in output il pixel equalizzato 
 
-done
+\subsection{Stato \texttt{DONE}}
 segnala il termine dell'equalizzazione
 
-
-finalizer
-idle
+\section{finalizer}
+\subsection{Stato \texttt{IDLE}}
 se riceve un segnale di done, passa a reset_all
 
-reset_all
+\subsection{Stato \texttt{RESET\_ALL}}
 segnala il reset di tutti i componenti, e passa a wait_for_end
 
-wait_for_end
+\subsection{Stato \texttt{WAIT\_FOR\_END}}
 se riceve un segnale di start, passa a idle
 
 disegno da vivado
 
-Risultati dei test
-il testing del componente è stato effettuato in due stati diversi.
+
+\chapter{Risultati dei test}
+il testing del componente è stato effettuato in due stadi diversi.\\
 Nel primo, quello di sviluppo, sono stati effettuati unit test per i singoli moduli, in modo da verificarne il loro funzionamento prima di integrarli tra di loro.
 Una volta completati tutti, i test hanno avuto finalità di controllo del funzionamento del componente come insieme, e di verifica di funzionamento in corner case.
 Vista la specifica di progetto, i corner case testati si suddividono in:
-condizioni particolari sulle dimensioni dell'immagine, quindi ( 0<=N<=128)
-	0x0
-	0x1
-	1x0
-	1x1
-	1xN
-	Nx1
-	128xN
-	Nx128
-	128X128
+condizioni particolari sulle dimensioni dell'immagine, quindi ( 0<=N<=128)\\
+\begin{itemize}
+    \item 0x0
+    \item 0x1
+    \item 1x0
+    \item 1x1
+    \item 1xN
+    \item Nx1
+    \item 128xN
+    \item Nx128
+    \item 128X128
+\end{itemize}
 
 condizioni particolari sul contenuto dell'immagine
-	immagine bianca
-	immagine nera
-	immagine grigia
+\begin{itemize}
+    \item immagine 
+    \item immagine nera
+    \item immagine grigia
+\end{itemize}
 
 Oltre a questi test è stata effettuata un'arrività di smoke testing su dimensioni variabili NxN con reset asincrono del componente durante il processamento.
+
+\chapter{Conclusioni}
+Il componente passa con successo tutti i test.
+L'utilizzo di diversi moduli che incapsulano i diversi compiti logici, può essere utile in caso di espansione o modifica del funzionamento del componente.
+
+\end{document}
