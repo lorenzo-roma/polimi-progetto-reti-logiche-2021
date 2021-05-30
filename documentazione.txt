@@ -21,26 +21,41 @@ Il compoenente deve essere implementato tramite VHDL, ed aumentare il contrasto 
 
 \begin{figure}[h!]
 \centering
-\includegraphics[scale=1.7]{universe}
-\caption{The Universe}
-\label{fig:universe}
+\includegraphics[scale=0.5]{unequalized}
+\caption{Immagine non equalizzata}
+\end{figure}
+
+\begin{figure}[h!]
+\centering
+\includegraphics[scale=0.5]{equalized}
+\caption{Immagine equalizzata}
 \end{figure}
 
 \chapter{Funzione del componente}
 Le immagini fornite in input saranno in scala di grigio a 256 livelli, avranno dimensione rettangolare, le cui dimensioni dei lati sono variabili tra 0px e 128px.
-Un esempio di equalizzazione è il seguente:
-data un immagine 2x2px:
-40 154
-200 34
+Un esempio di equalizzazione è il seguente:\\ \\
+data un immagine 2x2px: \\ 
+
+\begin{figure}[h!]
+\centering
+\includegraphics[scale=0.3]{uneq}
+\caption{Immagine non equalizzata}
+\end{figure}
 
 l'output dopo aver calibrato il contrasto sarà il seguente: \\
-\[f(40) = ... \]\\
-\[f(154) = ...\]\\
-\[f(200) = ...\]\\
-\[f(34) = ...\]\\
+\[f(40) = 0 \]\\
+\[f(154) = 255.\]\\
+\[f(200) = 64\]\\
+\[f(34) = 172\]\\
+
+\begin{figure}[h!]
+\centering
+\includegraphics[scale=0.3]{eq}
+\caption{Immagine equalizzata}
+\end{figure}
 
 La funzione f è definita come segue:\\
-\\
+\\ \\
 \texttt{
 f(old\_pixel):\\
 \quad delta\_value = max\_pixel\_value - min\_pixel\_value;\\
